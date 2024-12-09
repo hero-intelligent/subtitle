@@ -8,8 +8,6 @@ permissions:
   issues: write   # 如果工作流涉及到 issues 的创建或修改
   pull-requests: write  # 如果涉及 PR 创建或更新
   actions: write  # 如果工作流需要创建或更新 actions 的状态
-  repository-packages: write  # 如果操作涉及包管理
-  releases: write  # 如果涉及发布或创建 Release
 
 jobs:
   build:
