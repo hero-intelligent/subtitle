@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # 允许手动触发该工作流
 
 permissions:
-  contents: read  # 默认只读权限，如果需要推送代码等需要写权限
+  contents: write  # 默认只读权限，如果需要推送代码等需要写权限
   issues: write   # 如果工作流涉及到 issues 的创建或修改
   pull-requests: write  # 如果涉及 PR 创建或更新
   actions: write  # 如果工作流需要创建或更新 actions 的状态
