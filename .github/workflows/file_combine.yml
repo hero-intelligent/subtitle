@@ -1,4 +1,4 @@
-name: Build Python with PyInstaller
+name: Build file_combine
 
 on:
   workflow_dispatch:  # 允许手动触发该工作流
