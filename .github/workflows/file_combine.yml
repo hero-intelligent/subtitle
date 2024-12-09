@@ -59,6 +59,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Create GitHub Release
+        id: create-release
         uses: actions/create-release@v1
         with:
           tag_name: ${{ env.VERSION }}
