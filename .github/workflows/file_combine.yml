@@ -52,7 +52,7 @@ jobs:
       - name: Generate version
         id: version
         run: |
-          VERSION=$(date +'%Y-%m-%d')
+          VERSION=$(date +'%Y-%m-%d')-${{ github.sha }}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Create GitHub Release
