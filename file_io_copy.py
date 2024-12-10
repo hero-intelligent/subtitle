@@ -18,91 +18,93 @@ from tqdm import tqdm
 
 import ass
 
-data_template = {
-    "ScriptInfo": {},
-    "Styles": [],
-    "Events": []
-}
+from file_io import parse_ass_file
 
-def common_template() -> dict:
-    default_script_info = {
-        "ScriptType": "v4.00+",
-        "WrapStyle": "0",
-        "ScaledBorderAndShadow": "no",
-        "Timer": "100.0000",
-        "PlayResX": "1920",
-        "PlayResY": "1080",
-        "YCbCr Matrix": "None"
-    }
+# data_template = {
+#     "ScriptInfo": {},
+#     "Styles": [],
+#     "Events": []
+# }
 
-    default_style = [
-        {
-            "Name": "Default",
-            "Fontname": "Arial",
-            "Fontsize": 20.0,
-            "PrimaryColour": "&H00FFFFFF",
-            "SecondaryColour": "&H0300FFFF",
-            "OutlineColour": "&H00000000",
-            "BackColour": "&H02000000",
-            "Bold": 0,
-            "Italic": 0,
-            "Underline": 0,
-            "StrikeOut": 0,
-            "ScaleX": 100,
-            "ScaleY": 100,
-            "Spacing": 0,
-            "Angle": 0,
-            "BorderStyle": 1,
-            "Outline": 2,
-            "Shadow": 1,
-            "Alignment": 2,
-            "MarginL": 10,
-            "MarginR": 10,
-            "MarginV": 10,
-            "Encoding": 1
-        },
-        {
-            "Name": "Descriptive-920",
-            "Fontname": "Noto Sans SC Medium",
-            "Fontsize": 64.0,
-            "PrimaryColour": "&H21FFFFFF",
-            "SecondaryColour": "&H21FFFFFF",
-            "OutlineColour": "&H00000000",
-            "BackColour": "&H00000000",
-            "Bold": 0,
-            "Italic": 0,
-            "Underline": 0,
-            "StrikeOut": 0,
-            "ScaleX": 100,
-            "ScaleY": 100,
-            "Spacing": 0,
-            "Angle": 0,
-            "BorderStyle": 1,
-            "Outline": 0,
-            "Shadow": 0,
-            "Alignment": 2,
-            "MarginL": 10,
-            "MarginR": 10,
-            "MarginV": 920,
-            "Encoding": 1
-        }
-    ]
+# def common_template() -> dict:
+#     default_script_info = {
+#         "ScriptType": "v4.00+",
+#         "WrapStyle": "0",
+#         "ScaledBorderAndShadow": "no",
+#         "Timer": "100.0000",
+#         "PlayResX": "1920",
+#         "PlayResY": "1080",
+#         "YCbCr Matrix": "None"
+#     }
 
-    data = copy.deepcopy(data_template)
-    data["ScriptInfo"] = default_script_info
-    data["Styles"] = default_style
+#     default_style = [
+#         {
+#             "Name": "Default",
+#             "Fontname": "Arial",
+#             "Fontsize": 20.0,
+#             "PrimaryColour": "&H00FFFFFF",
+#             "SecondaryColour": "&H0300FFFF",
+#             "OutlineColour": "&H00000000",
+#             "BackColour": "&H02000000",
+#             "Bold": 0,
+#             "Italic": 0,
+#             "Underline": 0,
+#             "StrikeOut": 0,
+#             "ScaleX": 100,
+#             "ScaleY": 100,
+#             "Spacing": 0,
+#             "Angle": 0,
+#             "BorderStyle": 1,
+#             "Outline": 2,
+#             "Shadow": 1,
+#             "Alignment": 2,
+#             "MarginL": 10,
+#             "MarginR": 10,
+#             "MarginV": 10,
+#             "Encoding": 1
+#         },
+#         {
+#             "Name": "Descriptive-920",
+#             "Fontname": "Noto Sans SC Medium",
+#             "Fontsize": 64.0,
+#             "PrimaryColour": "&H21FFFFFF",
+#             "SecondaryColour": "&H21FFFFFF",
+#             "OutlineColour": "&H00000000",
+#             "BackColour": "&H00000000",
+#             "Bold": 0,
+#             "Italic": 0,
+#             "Underline": 0,
+#             "StrikeOut": 0,
+#             "ScaleX": 100,
+#             "ScaleY": 100,
+#             "Spacing": 0,
+#             "Angle": 0,
+#             "BorderStyle": 1,
+#             "Outline": 0,
+#             "Shadow": 0,
+#             "Alignment": 2,
+#             "MarginL": 10,
+#             "MarginR": 10,
+#             "MarginV": 920,
+#             "Encoding": 1
+#         }
+#     ]
 
-    return copy.deepcopy(data)
+#     data = copy.deepcopy(data_template)
+#     data["ScriptInfo"] = default_script_info
+#     data["Styles"] = default_style
 
-event_template = {
-    "Layer": 0,
-    "Style": "Default",
-    "Name": "",
-    "MarginL": 0,
-    "MarginR": 0,
-    "MarginV": 0,
-    "Effect": "",
-}
+#     return copy.deepcopy(data)
+
+# event_template = {
+#     "Layer": 0,
+#     "Style": "Default",
+#     "Name": "",
+#     "MarginL": 0,
+#     "MarginR": 0,
+#     "MarginV": 0,
+#     "Effect": "",
+# }
 
 def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
     pattern_srt = r"^(\d{2}):(\d{2}):(\d{2}),(\d{3})$"
@@ -147,101 +149,83 @@ def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
 class Ass:
     def __init__(self, ass_file_path: str):
         self.file_path = ass_file_path
-        self.parse_ass_file(ass_file_path)
+        self.read_ass_file()
 
-    def parse_ass_file(self, ass_file_path: str):
-        with open(ass_file_path, "r", encoding="utf-8") as ass_file:
+    def read_ass_file(self):
+        with open(self.file_path, "r", encoding="utf-8") as ass_file:
             self.file = ass_file.read()
             self.file = self.file.lstrip('\ufeff')  # Remove BOM if it's at the start
-            content = self.file.split("\n\n",2)
 
-        self.info_string = content[0].strip().split("\n",1)[1]
-        self.styles_string = content[1].strip().split("\n",1)[1]
-        self.events_string = content[2].strip().split("\n",1)[1]
+        self.parse_ass_file()
 
-        self.script_info = Ass.parse_ass_script_info(self.info_string)
+        self.data = {
+            "ScriptInfo": self.script_info,
+            "Styles": self.styles,
+            "Events": self.events
+        }
 
 
+    def parse_ass_file(self):
+        self.script_info = {}
+        self.styles = []
+        self.events = []
 
-    @staticmethod
-    def parse_ass_styles(lines):
-        # 用于存储所有的样式信息
-        styles = []
+        section = None
 
-        # 查找 Format 行和 Style 行
-        format_line = None
-        style_lines = []
-
-        for line in lines:
+        for line in tqdm(self.file.splitlines(), desc="parsing ass file"):
             line = line.strip()
 
-            # 查找 Format 行
-            if line.startswith("Format:"):
-                format_line = line.split(":")[1].strip()  # 获取 Format 后面的部分
-            # 查找 Style 行
-            elif line.startswith("Style:"):
-                style_lines.append(line)
+            if not line or line.startswith(";"):  # Skip empty lines and comments
+                continue
 
-        if not format_line:
-            raise ValueError("Format line not found in the ASS file.")
+            if line.startswith("[Script Info]"):
+                section = "ScriptInfo"
+            elif line.startswith("[V4+ Styles]"):
+                section = "Styles"
+            elif line.startswith("[Events]"):
+                section = "Events"
 
-        # 解析 Format 行（字段名）
-        field_names = [field.strip() for field in format_line.split(",")]
+            # Parse Script Info
+            if section == "ScriptInfo" and not line.startswith("["):
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    self.script_info[key.strip()] = value.strip()
 
-        # 递归解析每个 Style 行
-        for style in style_lines:
-            # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
-            fields = style.split(",", len(field_names) - 1)
+            # Parse Styles
+            elif section == "Styles" and line.startswith("Format:"):
+                style_format_line = line.split(":", 1)[1].strip()  # 获取 Format 后面的部分
+                self.style_formats = style_format_line.split(",")
 
-            # 将每个字段与对应的字段名称配对，并生成字典
-            style_data = {}
-            for i, field in enumerate(fields):
-                style_data[field_names[i]] = field.strip()
+            elif section == "Styles" and line.startswith("Style:"):
+                # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
+                style_data = line.split(":", 1)[1].split(",", len(self.style_formats) - 1)
 
-            styles.append(style_data)
+                # 将每个字段与对应的字段名称配对，并生成字典
+                style = {}
+                for i, field in enumerate(style_data):
+                    style[self.style_formats[i]] = field.strip()
 
-        # 将样式列表转换为 JSON 格式并返回
-        return json.dumps(styles, ensure_ascii=False, indent=4)
+                self.styles.append(style)
 
-    @staticmethod
-    def parse_ass_script_info(s: str) -> dict[str, str]:
-        # Split the input text into lines and create a dictionary
-        data_dict = {}
+            # Parse Events
+            elif section == "Events" and line.startswith("Format:"):
+                event_format_line = line.split(":", 1)[1].strip()  # 获取 Format 后面的部分
+                self.event_formats = event_format_line.split(",")
 
-        for line in s.strip().split('\n'):
-            # Split each line into key and value at the first colon
-            key, value = line.split(':', 1)
+            elif section == "Events" and line.startswith("Dialogue:"):
+                # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
+                event_data = line.split(":", 1)[1].split(",", len(self.event_formats) -1)
+                event = {}
+                for i, field in enumerate(event_data):
+                    event[self.event_formats[i]] = field.strip()
+                updates = {
+                    "Start": timestamp_reform(event_data[1].strip()),   # SRT style
+                    "End": timestamp_reform(event_data[2].strip()),     # SRT style
+                    "Text": event_data[9].strip().replace("\\N","\n")   # SRT Style
+                }
+                event.update(updates)
 
-            # Strip spaces and handle conversion of values (e.g. numbers, booleans)
-            key = key.strip()
-            value = value.strip()
-
-            # Try to convert the value to a number if possible (int or float)
-            if value.replace('.', '', 1).isdigit() and value.count('.') < 2:
-                if '.' in value:
-                    data_dict[key] = float(value)
-                else:
-                    data_dict[key] = int(value)
-            else:
-                data_dict[key] = value
-
-        return data_dict
-
-a = Ass("testfile/20241125/1.ass")
-# print(a.script_info_string)
-# print(a.styles_string)
-# print(a.events_string)
-a.parse_ass_file("a").
-print(a.script_info,a.styles_df,a.events_df)
-
-
-
-
-
-
-
-
-
+                self.events.append(event)
 
 def parse_srt_file(srt_file_path: str) -> dict:
     data = copy.deepcopy(common_template())
