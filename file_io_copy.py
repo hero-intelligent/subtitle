@@ -16,8 +16,6 @@ import pandas as pd
 
 from tqdm import tqdm
 
-import ass
-
 from file_io import parse_ass_file
 
 data_template = {
@@ -149,37 +147,40 @@ def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
 class Ass:
     def __init__(self, path: str):
         self.path = path
-        self.ass = self.read()
-        self.data = self.parse(self.file)
-
-    def read(self):
         with open(self.path, "r", encoding="utf-8") as file:
             self.file = file.read()
             self.file = self.file.lstrip('\ufeff')  # Remove BOM if it's at the start
 
-        return self.file
+        self.data = self.parse(self.file)
+
+        self.ass = self.file
+        self.srt = self.convert_srt(self.events)
+
 
     def parse(self, file):
         self.script_info = {}
         self.styles = []
         self.events = []
 
-        section = None
+        self.current_section = None
         for line in tqdm(file.splitlines(), desc="reading ass file"):
             if not line or line.startswith(";"):  # Skip empty lines and comments
                 continue
-            self.parse_line(section, line)
 
-        return {
+            self.current_section = self.section(line, self.current_section)
+            self.parse_line(self.current_section, line)
+
+        data = {
             "ScriptInfo": self.script_info,
             "Styles": self.styles,
             "Events": self.events
         }
 
+        return data
+
     def parse_line(self, section, line):
         line = line.strip()
 
-        section = self.section(line, section)
         # Parse Script Info
         if section == "ScriptInfo" and not line.startswith("[") and ":" in line:
             key, value = line.split(":", 1)
@@ -217,16 +218,18 @@ class Ass:
         # 将每个字段与对应的字段名称配对，并生成字典
         style = {}
         for i, field in enumerate(style_data):
-            style[format[i]] = field.strip()
+            key = format[i].strip()
+            style[key] = field.strip()
 
         return style
 
     def parse_event(self, line, format):
         # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
-        event_data = line.split(":", 1)[1].split(",", len(self.event_format) -1)
+        event_data = line.split(":", 1)[1].split(",", len(format) -1)
         event = {}
         for i, field in enumerate(event_data):
-            event[self.event_format[i]] = field.strip()
+            key = format[i].strip()
+            event[key] = field.strip()
         updates = {
             "Start": timestamp_reform(event_data[1].strip()),   # SRT style
             "End": timestamp_reform(event_data[2].strip()),     # SRT style
@@ -235,6 +238,32 @@ class Ass:
         event.update(updates)
 
         return event
+
+    def convert_srt(self, events) -> str:
+        srt_output = []
+
+        for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
+            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
+            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
+
+            start_time = timestamp_reform(start_time, output_format="srt")
+            end_time = timestamp_reform(end_time, output_format="srt")
+            text = event['Text']
+
+            # Format the SRT entry
+            srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
+            srt_output.append(srt_entry)
+
+        return "\n".join(srt_output)
+
+a = Ass("testfile/20241125/1.ass")
+data = a.data
+with open("a.json","w",encoding="utf-8") as file:
+    j = json.dumps(data, indent=4, ensure_ascii=False)
+    file.write(j)
+with open("a.srt","w",encoding="utf-8") as subtitle:
+    subtitle.write(a.srt)
+
 
 
 def parse_srt_file(srt_file_path: str) -> dict:
