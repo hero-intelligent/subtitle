@@ -20,91 +20,91 @@ import ass
 
 from file_io import parse_ass_file
 
-# data_template = {
-#     "ScriptInfo": {},
-#     "Styles": [],
-#     "Events": []
-# }
+data_template = {
+    "ScriptInfo": {},
+    "Styles": [],
+    "Events": []
+}
 
-# def common_template() -> dict:
-#     default_script_info = {
-#         "ScriptType": "v4.00+",
-#         "WrapStyle": "0",
-#         "ScaledBorderAndShadow": "no",
-#         "Timer": "100.0000",
-#         "PlayResX": "1920",
-#         "PlayResY": "1080",
-#         "YCbCr Matrix": "None"
-#     }
+def common_template() -> dict:
+    default_script_info = {
+        "ScriptType": "v4.00+",
+        "WrapStyle": "0",
+        "ScaledBorderAndShadow": "no",
+        "Timer": "100.0000",
+        "PlayResX": "1920",
+        "PlayResY": "1080",
+        "YCbCr Matrix": "None"
+    }
 
-#     default_style = [
-#         {
-#             "Name": "Default",
-#             "Fontname": "Arial",
-#             "Fontsize": 20.0,
-#             "PrimaryColour": "&H00FFFFFF",
-#             "SecondaryColour": "&H0300FFFF",
-#             "OutlineColour": "&H00000000",
-#             "BackColour": "&H02000000",
-#             "Bold": 0,
-#             "Italic": 0,
-#             "Underline": 0,
-#             "StrikeOut": 0,
-#             "ScaleX": 100,
-#             "ScaleY": 100,
-#             "Spacing": 0,
-#             "Angle": 0,
-#             "BorderStyle": 1,
-#             "Outline": 2,
-#             "Shadow": 1,
-#             "Alignment": 2,
-#             "MarginL": 10,
-#             "MarginR": 10,
-#             "MarginV": 10,
-#             "Encoding": 1
-#         },
-#         {
-#             "Name": "Descriptive-920",
-#             "Fontname": "Noto Sans SC Medium",
-#             "Fontsize": 64.0,
-#             "PrimaryColour": "&H21FFFFFF",
-#             "SecondaryColour": "&H21FFFFFF",
-#             "OutlineColour": "&H00000000",
-#             "BackColour": "&H00000000",
-#             "Bold": 0,
-#             "Italic": 0,
-#             "Underline": 0,
-#             "StrikeOut": 0,
-#             "ScaleX": 100,
-#             "ScaleY": 100,
-#             "Spacing": 0,
-#             "Angle": 0,
-#             "BorderStyle": 1,
-#             "Outline": 0,
-#             "Shadow": 0,
-#             "Alignment": 2,
-#             "MarginL": 10,
-#             "MarginR": 10,
-#             "MarginV": 920,
-#             "Encoding": 1
-#         }
-#     ]
+    default_style = [
+        {
+            "Name": "Default",
+            "Fontname": "Arial",
+            "Fontsize": 20.0,
+            "PrimaryColour": "&H00FFFFFF",
+            "SecondaryColour": "&H0300FFFF",
+            "OutlineColour": "&H00000000",
+            "BackColour": "&H02000000",
+            "Bold": 0,
+            "Italic": 0,
+            "Underline": 0,
+            "StrikeOut": 0,
+            "ScaleX": 100,
+            "ScaleY": 100,
+            "Spacing": 0,
+            "Angle": 0,
+            "BorderStyle": 1,
+            "Outline": 2,
+            "Shadow": 1,
+            "Alignment": 2,
+            "MarginL": 10,
+            "MarginR": 10,
+            "MarginV": 10,
+            "Encoding": 1
+        },
+        {
+            "Name": "Descriptive-920",
+            "Fontname": "Noto Sans SC Medium",
+            "Fontsize": 64.0,
+            "PrimaryColour": "&H21FFFFFF",
+            "SecondaryColour": "&H21FFFFFF",
+            "OutlineColour": "&H00000000",
+            "BackColour": "&H00000000",
+            "Bold": 0,
+            "Italic": 0,
+            "Underline": 0,
+            "StrikeOut": 0,
+            "ScaleX": 100,
+            "ScaleY": 100,
+            "Spacing": 0,
+            "Angle": 0,
+            "BorderStyle": 1,
+            "Outline": 0,
+            "Shadow": 0,
+            "Alignment": 2,
+            "MarginL": 10,
+            "MarginR": 10,
+            "MarginV": 920,
+            "Encoding": 1
+        }
+    ]
 
-#     data = copy.deepcopy(data_template)
-#     data["ScriptInfo"] = default_script_info
-#     data["Styles"] = default_style
+    data = copy.deepcopy(data_template)
+    data["ScriptInfo"] = default_script_info
+    data["Styles"] = default_style
 
-#     return copy.deepcopy(data)
+    return copy.deepcopy(data)
 
-# event_template = {
-#     "Layer": 0,
-#     "Style": "Default",
-#     "Name": "",
-#     "MarginL": 0,
-#     "MarginR": 0,
-#     "MarginV": 0,
-#     "Effect": "",
-# }
+event_template = {
+    "Layer": 0,
+    "Style": "Default",
+    "Name": "",
+    "MarginL": 0,
+    "MarginR": 0,
+    "MarginV": 0,
+    "Effect": "",
+}
 
 def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
     pattern_srt = r"^(\d{2}):(\d{2}):(\d{2}),(\d{3})$"
@@ -147,85 +147,95 @@ def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
         return f"{int(hours):01}:{int(minutes):02}:{int(seconds):02}.{int(round(milliseconds / 1000, 2) * 100)}"
 
 class Ass:
-    def __init__(self, ass_file_path: str):
-        self.file_path = ass_file_path
-        self.read_ass_file()
+    def __init__(self, path: str):
+        self.path = path
+        self.ass = self.read()
+        self.data = self.parse(self.file)
 
-    def read_ass_file(self):
-        with open(self.file_path, "r", encoding="utf-8") as ass_file:
-            self.file = ass_file.read()
+    def read(self):
+        with open(self.path, "r", encoding="utf-8") as file:
+            self.file = file.read()
             self.file = self.file.lstrip('\ufeff')  # Remove BOM if it's at the start
 
-        self.parse_ass_file()
+        return self.file
 
-        self.data = {
-            "ScriptInfo": self.script_info,
-            "Styles": self.styles,
-            "Events": self.events
-        }
-
-
-    def parse_ass_file(self):
+    def parse(self, file):
         self.script_info = {}
         self.styles = []
         self.events = []
 
         section = None
-
-        for line in tqdm(self.file.splitlines(), desc="parsing ass file"):
-            line = line.strip()
-
+        for line in tqdm(file.splitlines(), desc="reading ass file"):
             if not line or line.startswith(";"):  # Skip empty lines and comments
                 continue
+            self.parse_line(section, line)
 
-            if line.startswith("[Script Info]"):
-                section = "ScriptInfo"
-            elif line.startswith("[V4+ Styles]"):
-                section = "Styles"
-            elif line.startswith("[Events]"):
-                section = "Events"
+        return {
+            "ScriptInfo": self.script_info,
+            "Styles": self.styles,
+            "Events": self.events
+        }
 
-            # Parse Script Info
-            if section == "ScriptInfo" and not line.startswith("["):
-                if ":" in line:
-                    key, value = line.split(":", 1)
-                    self.script_info[key.strip()] = value.strip()
+    def parse_line(self, section, line):
+        line = line.strip()
 
-            # Parse Styles
-            elif section == "Styles" and line.startswith("Format:"):
-                style_format_line = line.split(":", 1)[1].strip()  # 获取 Format 后面的部分
-                self.style_formats = style_format_line.split(",")
+        section = self.section(line, section)
+        # Parse Script Info
+        if section == "ScriptInfo" and not line.startswith("[") and ":" in line:
+            key, value = line.split(":", 1)
+            self.script_info[key.strip()] = value.strip()
+        elif line.startswith("Format:"):
+            self.parse_format(line, section)
+        elif section == "Styles" and line.startswith("Style:"):
+            style = self.parse_style(line, self.style_format)
+            self.styles.append(style)
+        elif section == "Events" and line.startswith("Dialogue:"):
+            event = self.parse_event(line, self.event_format)
+            self.events.append(event)
 
-            elif section == "Styles" and line.startswith("Style:"):
-                # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
-                style_data = line.split(":", 1)[1].split(",", len(self.style_formats) - 1)
+    def section(self, line, section):
+        if line.startswith("[Script Info]"):
+            section = "ScriptInfo"
+        elif line.startswith("[V4+ Styles]"):
+            section = "Styles"
+        elif line.startswith("[Events]"):
+            section = "Events"
 
-                # 将每个字段与对应的字段名称配对，并生成字典
-                style = {}
-                for i, field in enumerate(style_data):
-                    style[self.style_formats[i]] = field.strip()
+        return section
 
-                self.styles.append(style)
+    def parse_format(self, line, section):
+        format = line.split(":", 1)[1].strip().split(",")
+        if section == "Styles":
+            self.style_format = format
+        elif section == "Events":
+            self.event_format = format
 
-            # Parse Events
-            elif section == "Events" and line.startswith("Format:"):
-                event_format_line = line.split(":", 1)[1].strip()  # 获取 Format 后面的部分
-                self.event_formats = event_format_line.split(",")
+    def parse_style(self, line, format):
+        # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
+        style_data = line.split(":", 1)[1].split(",", len(format) - 1)
 
-            elif section == "Events" and line.startswith("Dialogue:"):
-                # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
-                event_data = line.split(":", 1)[1].split(",", len(self.event_formats) -1)
-                event = {}
-                for i, field in enumerate(event_data):
-                    event[self.event_formats[i]] = field.strip()
-                updates = {
-                    "Start": timestamp_reform(event_data[1].strip()),   # SRT style
-                    "End": timestamp_reform(event_data[2].strip()),     # SRT style
-                    "Text": event_data[9].strip().replace("\\N","\n")   # SRT Style
-                }
-                event.update(updates)
+        # 将每个字段与对应的字段名称配对，并生成字典
+        style = {}
+        for i, field in enumerate(style_data):
+            style[format[i]] = field.strip()
 
-                self.events.append(event)
+        return style
+
+    def parse_event(self, line, format):
+        # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
+        event_data = line.split(":", 1)[1].split(",", len(self.event_format) -1)
+        event = {}
+        for i, field in enumerate(event_data):
+            event[self.event_format[i]] = field.strip()
+        updates = {
+            "Start": timestamp_reform(event_data[1].strip()),   # SRT style
+            "End": timestamp_reform(event_data[2].strip()),     # SRT style
+            "Text": event_data[9].strip().replace("\\N","\n")   # SRT Style
+        }
+        event.update(updates)
+
+        return event
+
 
 def parse_srt_file(srt_file_path: str) -> dict:
     data = copy.deepcopy(common_template())

@@ -1,26 +1,46 @@
-class Trex:
-    def __init__(self):
-        self.q = self.f(1,2)
-        self.qq = self.f(3,4)
-        self.qqq = self.f(5,6)
-        self.ddd = {
-            "q": self.q,
-            "qq": self.qq,
-            "qqq": self.qqq
-        }
+import pandas as pd
+from docx import Document
 
-    def f(self,a,b):
-        ll = []
+# Your nested data structure
+# data = {
+#     "a": {"a": "a", "b": "b", "c": "c"},
+#     "b": [
+#         {"X": "X", "Y": "Y", "Z": "Z"},
+#         {"X": "A", "Y": "B", "Z": "C"},
+#         {"X": "D", "Y": "E", "Z": "F"},
+#         {"X": "G", "Y": "H", "Z": "I"}
+#     ]
+# }
+data = {
+    'Name': ['Alice', 'Bob', 'Charlie'],
+    'Age': [25, 30, 35],
+    'City': ['New York', 'Los Angeles', 'Chicago']
+}
+# Step 1: Extract the list of dictionaries
+b_data = data
 
-        for k in range(a):
-            dd = {}
+# Step 2: Convert to a DataFrame
+df_b = pd.DataFrame(b_data)
 
-            for i in range(b):
-                self.pritn = str(k) + "," + str(i)
-                dd[str(i)] = str(k) + "," + str(i)
-            ll.append(dd)
-        return ll
+# Step 3: Create a Word document
+doc = Document()
+doc.add_heading('DataFrame Table from Nested Data', 0)
 
-tx = Trex()
+# Step 4: Add table to Word document
+table = doc.add_table(rows=df_b.shape[0] + 1, cols=df_b.shape[1])
 
-print(tx.pritn)
+# Add headers to the first row
+hdr_cells = table.rows[0].cells
+for i, column_name in enumerate(df_b.columns):
+    hdr_cells[i].text = column_name
+
+# Add data rows
+for i, row in df_b.iterrows():
+    row_cells = table.rows[i + 1].cells
+    for j, value in enumerate(row):
+        row_cells[j].text = str(value)
+
+# Step 5: Save the document
+doc.save('nested_data_table.docx')
+
+print("Table has been added to the Word document.")
