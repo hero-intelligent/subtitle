@@ -167,12 +167,25 @@ def drag_and_drop():
 
 def main():
     original_path, original_data, doc_paths = drag_and_drop()
-    path_split = os.path.splitext(original_path)
+
+    file_directory = os.path.dirname(original_path)
+    file_name = os.path.basename(original_path)
+    path_split = os.path.splitext(file_name)
+
+    dir_path = file_directory + "/" + path_split[0] + "/"
+    # Create the directory if it doesn't exist
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+        print(f"Directory created: {dir_path}")
+    else:
+        print(f"Directory already exists: {dir_path}")
+
+    target_path_prefix = file_directory + "/" + path_split[0] + "/" + path_split[0]
 
     combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if len(doc_paths) > 1 else False)
 
     doc = json_to_word(original_data, combined_data)
-    doc.save(path_split[0] + '_combined.docx')
+    doc.save(target_path_prefix + '_combined.docx')
 
     never_translated_data = find_never_translated(original_data, combined_data)
 
@@ -180,31 +193,31 @@ def main():
         content = json_to_srt(combined_data)
         never_translated_subtitle = json_to_srt(never_translated_data)
         never_translated_doc = json_to_word(never_translated_data)
-        never_translated_doc.save(path_split[0] + '_never_translated.docx')
+        never_translated_doc.save(target_path_prefix + '_never_translated.docx')
     elif path_split[1] == ".ass":
         content = json_to_ass(combined_data)
         never_translated_subtitle = json_to_ass(never_translated_data)
         never_translated_doc = json_to_word(never_translated_data)
-        never_translated_doc.save(path_split[0] + '_never_translated.docx')
+        never_translated_doc.save(target_path_prefix + '_never_translated.docx')
 
-    with open(path_split[0] + '_combined.json', 'w', encoding='utf-8') as json_file:
+    with open(target_path_prefix + '_combined.json', 'w', encoding='utf-8') as json_file:
         json.dump(combined_data, json_file, ensure_ascii=False, indent=4)
 
-    with open(path_split[0] + "_combined" + path_split[1], "w", encoding="utf-8") as file:
+    with open(target_path_prefix + "_combined" + path_split[1], "w", encoding="utf-8") as file:
         file.write(content)
 
-    with open(path_split[0] + "_never_translated" + path_split[1], "w", encoding="utf-8") as file:
+    with open(target_path_prefix + "_never_translated" + path_split[1], "w", encoding="utf-8") as file:
         file.write(never_translated_subtitle)
 
-    with open(path_split[0] + "_never_translated.json", "w", encoding='utf-8') as json_file:
+    with open(target_path_prefix + "_never_translated.json", "w", encoding='utf-8') as json_file:
         json.dump(never_translated_data, json_file, ensure_ascii=False, indent=4)
 
     if diffs:
-        with open(path_split[0] + "diffs.json", 'w', encoding='utf-8') as json_file:
+        with open(target_path_prefix + "diffs.json", 'w', encoding='utf-8') as json_file:
             json.dump(diffs, json_file, ensure_ascii=False, indent=4)
 
         df = pd.DataFrame(diffs)
-        df.to_excel(path_split[0] + "diffs.xlsx", index=False)
+        df.to_excel(target_path_prefix + "diffs.xlsx", index=False)
 
 if __name__ == '__main__':
     main()
