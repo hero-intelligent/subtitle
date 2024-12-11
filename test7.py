@@ -28,8 +28,12 @@ def accept_changes_in_docx(docx_path):
         del_tag.decompose()  # Completely remove the deleted element
 
     # # Convert the modified BeautifulSoup object back to XML
-    # modified_xml = str(soup)
+    modified_xml = str(soup)
 
+    return modified_xml
+
+def xml_to_dataframe(xml_str):
+    soup = BeautifulSoup(xml_str, 'lxml-xml')
     # Step 4: Find all tables in the document
     tables = soup.find_all('w:tbl')  # Look for all tables (w:tbl) elements
     
@@ -82,57 +86,57 @@ def combine_cell_text(cell):
 
 
 
-import zipfile
-from bs4 import BeautifulSoup
-import pandas as pd
+# import zipfile
+# from bs4 import BeautifulSoup
+# import pandas as pd
 
-def docx_table_to_dataframe(docx_file):
-    # Step 1: Open the DOCX file (which is essentially a ZIP archive)
-    with zipfile.ZipFile(docx_file, 'r') as docx:
-        # Step 2: Extract the document.xml file containing the table data
-        xml_content = docx.read('word/document.xml')
+# def docx_table_to_dataframe(docx_file):
+#     # Step 1: Open the DOCX file (which is essentially a ZIP archive)
+#     with zipfile.ZipFile(docx_file, 'r') as docx:
+#         # Step 2: Extract the document.xml file containing the table data
+#         xml_content = docx.read('word/document.xml')
     
-    # Step 3: Parse the XML content with BeautifulSoup
-    soup = BeautifulSoup(xml_content, 'xml')  # We use 'xml' parser for XML content
+#     # Step 3: Parse the XML content with BeautifulSoup
+#     soup = BeautifulSoup(xml_content, 'xml')  # We use 'xml' parser for XML content
     
-    # Step 4: Find all tables in the document
-    tables = soup.find_all('w:tbl')  # Look for all tables (w:tbl) elements
+#     # Step 4: Find all tables in the document
+#     tables = soup.find_all('w:tbl')  # Look for all tables (w:tbl) elements
     
-    if not tables:
-        raise ValueError("No table found in the document.")
+#     if not tables:
+#         raise ValueError("No table found in the document.")
     
-    # Step 5: Get the first table (assuming only one table exists)
-    table = tables[0]
+#     # Step 5: Get the first table (assuming only one table exists)
+#     table = tables[0]
 
-    # Step 6: Build the HTML for the table
-    html = '<table border="1">'  # Start HTML table
+#     # Step 6: Build the HTML for the table
+#     html = '<table border="1">'  # Start HTML table
     
-    rows = table.find_all('w:tr')  # Find all table rows
+#     rows = table.find_all('w:tr')  # Find all table rows
     
-    for row in rows:
-        html += '<tr>'  # Start a new row
-        cells = row.find_all('w:tc')  # Find all table cells in the row
+#     for row in rows:
+#         html += '<tr>'  # Start a new row
+#         cells = row.find_all('w:tc')  # Find all table cells in the row
         
-        for cell in cells:
-            # Extract text from each <w:t> (text) tag inside the cell
-            cell_text = ' '.join([text.get_text().strip() for text in cell.find_all('w:t') if text.get_text().strip()])
-            html += f'<td>{cell_text}</td>'  # Add the cell data to the HTML row
+#         for cell in cells:
+#             # Extract text from each <w:t> (text) tag inside the cell
+#             cell_text = ' '.join([text.get_text().strip() for text in cell.find_all('w:t') if text.get_text().strip()])
+#             html += f'<td>{cell_text}</td>'  # Add the cell data to the HTML row
         
-        html += '</tr>'  # End the row
+#         html += '</tr>'  # End the row
     
-    html += '</table>'  # End HTML table
+#     html += '</table>'  # End HTML table
     
-    # Step 7: Parse the HTML table with BeautifulSoup
-    table_soup = BeautifulSoup(html, 'html.parser')
+#     # Step 7: Parse the HTML table with BeautifulSoup
+#     table_soup = BeautifulSoup(html, 'html.parser')
     
-    # Step 8: Convert the HTML table to a Pandas DataFrame
-    df = pd.read_html(str(table_soup))[0]  # The first table in the HTML
+#     # Step 8: Convert the HTML table to a Pandas DataFrame
+#     df = pd.read_html(str(table_soup))[0]  # The first table in the HTML
     
-    return df
+#     return df
 
 # Usage example:
 docx_file = 'your_file.docx'  # Path to your DOCX file
-df = docx_table_to_dataframe(docx_file)
+df = xml_to_dataframe(docx_file)
 
 # Print the DataFrame
 print(df)
