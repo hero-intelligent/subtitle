@@ -36,7 +36,7 @@ def accept_changes_in_docx(docx_path):
                     if ins.text:
                         cell_text += ins.text
                 # 移除删除的文本（<w:delText>）
-                for del_text in para.findall('.//w:delText', ns):
+                for del_text in para.findall('.//w:del', ns):
                     para.remove(del_text)  # 删除删除标记
                 # 合并原段落文本
                 if para.text:
