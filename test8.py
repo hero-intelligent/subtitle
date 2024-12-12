@@ -1,22 +1,29 @@
-import os
+import re
 
-original_path = r"F:\workdir\2-ass_combine\a.json"
 
-file_directory = os.path.dirname(original_path)
-file_name = os.path.basename(original_path)
-path_split = os.path.splitext(file_name)
 
-dir_path = file_directory + "/" + path_split[0] + "/"
-# Create the directory if it doesn't exist
-if not os.path.exists(dir_path):
-    os.makedirs(dir_path)
-    print(f"Directory created: {dir_path}")
-else:
-    print(f"Directory already exists: {dir_path}")
 
-target_path = file_directory + "/" + path_split[0] + "/" + path_split[0] + '_combined.docx'
+def remove_comments(code):
+    # 去除单行注释（以#开头）
+    code_no_single_line_comments = re.sub(r'#.*', '', code)
 
-print(target_path)
+    # 去除多行注释（以'''或"""包裹）
+    code_no_multi_line_comments = re.sub(r"'''(.*?)'''|\"\"\"(.*?)\"\"\"", '', code_no_single_line_comments, flags=re.DOTALL)
 
-with open(target_path, "w", encoding="utf-8") as f:
-    f.write("e")
+    return code_no_multi_line_comments
+
+with open("test7.py","r", encoding="utf-8") as p:
+    t = p.read()
+
+# t = remove_comments(t)
+
+while " \n" in t:
+    t = t.replace(" \n", "\n")
+while "\n\n\n" in t:
+    t = t.replace("\n\n\n","\n\n")
+
+# t = t.replace("\ndef","\n\ndef")
+t = t.strip()
+
+with open("test7.py", "w", encoding="utf-8") as q:
+    q.write(t)
