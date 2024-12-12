@@ -15,14 +15,14 @@ def remove_comments(code):
 with open("test7.py","r", encoding="utf-8") as p:
     t = p.read()
 
-# t = remove_comments(t)
+t = remove_comments(t)
 
 while " \n" in t:
     t = t.replace(" \n", "\n")
-while "\n\n\n" in t:
-    t = t.replace("\n\n\n","\n\n")
+while "\n\n" in t:
+    t = t.replace("\n\n","\n")
 
-# t = t.replace("\ndef","\n\ndef")
+t = t.replace("\ndef","\n\ndef")
 t = t.strip()
 
 with open("test7.py", "w", encoding="utf-8") as q:
