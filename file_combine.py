@@ -126,7 +126,9 @@ def find_never_translated(original_data, combined_data):
         if not event_text:
             never_translated_events.append(original_events[i])
 
-    never_translated_data = copy.deepcopy(original_data)
+    never_translated_data = {}
+    never_translated_data["ScriptInfo"] = original_data["ScriptInfo"]
+    never_translated_data["Styles"] = original_data["Styles"]
     never_translated_data["Events"] = never_translated_events
 
     return copy.deepcopy(never_translated_data)
@@ -285,4 +287,9 @@ def main():
         df.to_excel(target_path_prefix + "diffs.xlsx", index=False)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(e)
+    
+    input("\n\nPress Enter to exit.")

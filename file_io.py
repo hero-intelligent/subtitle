@@ -189,6 +189,8 @@ def parse_ass_file(ass_file_path: str) -> dict:
 
     section = None
 
+    event_index = 0
+
     for line in tqdm(content.splitlines(), desc="parsing ass file"):
         line = line.strip()
 
@@ -240,8 +242,10 @@ def parse_ass_file(ass_file_path: str) -> dict:
 
         # Parse Events
         elif section == "Events" and line.startswith("Dialogue:"):
+            event_index = event_index + 1
             event_data = line.split(":", 1)[1].split(",", 9)  # Split the dialogue data into 9 parts
             event = {
+                "Index": event_index,
                 "Layer": int(event_data[0].strip()),
                 "Start": timestamp_reform(event_data[1].strip()),   # SRT style
                 "End": timestamp_reform(event_data[2].strip()),     # SRT style
@@ -272,6 +276,7 @@ def parse_srt_file(srt_file_path: str) -> dict:
 
         event = {
             **event_template,
+            "Index": event_data[0],
             "Start": event_data[1].split("-->",1)[0].strip(),
             "End": event_data[1].split("-->",1)[1].strip(),
             "Text": event_data[2],
@@ -302,6 +307,7 @@ def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = 
 
         event_left = {
             **copy.deepcopy(event_template),
+            "Index": int(row.cells[0].text.strip()),
             "Start": row.cells[1].text.split("-->",1)[0].strip(),
             "End": row.cells[1].text.split("-->",1)[1].strip(),
             "Text": row.cells[2].text.strip(),
@@ -310,6 +316,7 @@ def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = 
 
         event_right = {
             **copy.deepcopy(event_template),
+            "Index": int(row.cells[0].text.strip()),
             "Start": row.cells[1].text.split("-->",1)[0].strip(),
             "End": row.cells[1].text.split("-->",1)[1].strip(),
             "Text": row.cells[3].text.strip(),
@@ -398,27 +405,40 @@ def json_to_ass(json_data: dict) -> str:
 
     return "\n".join(ass_output)
 
-def json_to_srt(json_data: dict) -> str:
+def json_to_srt(json_data: dict, not_keep_index: bool = True) -> str:
     # print(json_data)
     events = json_data['Events']
     srt_output = []
+    if not_keep_index:
+        for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
+            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
+            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
 
-    for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
-        start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
-        end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
+            start_time = timestamp_reform(start_time, output_format="srt")
+            end_time = timestamp_reform(end_time, output_format="srt")
+            text = event['Text']
 
-        start_time = timestamp_reform(start_time, output_format="srt")
-        end_time = timestamp_reform(end_time, output_format="srt")
-        text = event['Text']
+            # Format the SRT entry
+            srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
+            srt_output.append(srt_entry)
+    else:
+        for event in tqdm(events, desc="generating srt", total = len(events)):
+            index = str(event.get("Index", "")).strip()
+            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
+            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
 
-        # Format the SRT entry
-        srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
-        srt_output.append(srt_entry)
+            start_time = timestamp_reform(start_time, output_format="srt")
+            end_time = timestamp_reform(end_time, output_format="srt")
+            text = event['Text']
+
+            # Format the SRT entry
+            srt_entry = f"{index}\n{start_time} --> {end_time}\n{text}\n"
+            srt_output.append(srt_entry)
 
     return "\n".join(srt_output)
 
 # Function to convert JSON to Word table format
-def json_to_word(original_data: dict, translated_data: dict = None) -> Document:
+def json_to_word(original_data: dict, translated_data: dict = None, force_disgard_index_and_time: bool = True) -> Document:
     doc = Document()
 
     original_events = original_data['Events']
@@ -429,13 +449,14 @@ def json_to_word(original_data: dict, translated_data: dict = None) -> Document:
 
     # Loop through events and fill in the table
     for i, event in tqdm(enumerate(original_events), desc="filling original text in docx file", total=len(original_events)):
+        index = event['Index']
         start_time = event['Start']
         end_time = event['End']
         subtitle_text = event['Text']
 
         row_cells = table.rows[i].cells
 
-        row_cells[0].text = str(i + 1)  # Number
+        row_cells[0].text = str(index)  # Number
         row_cells[1].text = f"{start_time} --> {end_time}"  # Time range
         row_cells[2].text = subtitle_text  # Subtitle text
         row_cells[3].text = ""  # Empty column
@@ -444,18 +465,26 @@ def json_to_word(original_data: dict, translated_data: dict = None) -> Document:
         translated_events = translated_data['Events']
         # Loop through events and fill in the table
         for i, event in tqdm(enumerate(translated_events), desc="filling translated text in docx file", total=len(translated_events)):
+            index = event['Index']
             start_time = event['Start']
             end_time = event['End']
             subtitle_text = event['Text']
 
             row_cells = table.rows[i].cells
 
-            is_index_same = row_cells[0].text == str(i + 1)  # Number
+            is_index_same = row_cells[0].text == str(index)  # Number
             is_timestamp_same = row_cells[1].text == f"{start_time} --> {end_time}"  # Time range
 
-            # if is_index_same and is_timestamp_same:
-            if True:
+            if force_disgard_index_and_time:
                 row_cells[3].text = subtitle_text  # Empty column
+            elif is_index_same and is_timestamp_same:
+                row_cells[3].text = subtitle_text  # Empty column
+            else:
+                print("index or time match failed.")
+                print("original data:")
+                print(row_cells[0].text, row_cells[1].text, row_cells[2].text)
+                print("translated data:")
+                print(str(index), f"{start_time} --> {end_time}", subtitle_text)
 
     # set_font_based_on_characters(doc)
     doc = change_font(doc)
