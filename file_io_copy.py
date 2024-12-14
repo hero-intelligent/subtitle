@@ -215,21 +215,31 @@ class Ass:
         # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
         style_data = line.split(":", 1)[1].split(",", len(format) - 1)
 
-        # 将每个字段与对应的字段名称配对，并生成字典
-        style = {}
-        for i, field in enumerate(style_data):
-            key = format[i].strip()
-            style[key] = field.strip()
+        style_data = [item.strip() for item in style_data]
+        if len(format) == len(style_data):
+            style = dict(zip(format,style_data))
+        else:
+            print(style_data)
+        # # 将每个字段与对应的字段名称配对，并生成字典
+        # style = {}
+        # for i, field in enumerate(style_data):
+        #     key = format[i].strip()
+        #     style[key] = field.strip()
 
         return style
 
     def parse_event(self, line, format):
         # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
         event_data = line.split(":", 1)[1].split(",", len(format) -1)
-        event = {}
-        for i, field in enumerate(event_data):
-            key = format[i].strip()
-            event[key] = field.strip()
+        event_data = [item.strip() for item in event_data]
+        if len(format) == len(event_data):
+            event = dict(zip(format,event_data))
+        else:
+            print(event_data)
+        # event = {}
+        # for i, field in enumerate(event_data):
+        #     key = format[i].strip()
+        #     event[key] = field.strip()
         updates = {
             "Start": timestamp_reform(event_data[1].strip()),   # SRT style
             "End": timestamp_reform(event_data[2].strip()),     # SRT style
@@ -525,10 +535,10 @@ def convert_subtitle_to_json(subtitle_file_path, json_file_path):
         json.dump(data, json_file, ensure_ascii=False, indent=4)
 
 # Example usage
-# ass_file = "example.ass"  # Path to your ASS file
-# json_file = "X0643_KIRA the World EP02：少年们的 STAR MT 比赛_pt.json"  # Path where you want to save the JSON output
-# convert_subtitle_to_json(ass_file, json_file)
+ass_file = "example.ass"  # Path to your ASS file
+json_file = "X0643_KIRA the World EP02：少年们的 STAR MT 比赛_pt.json"  # Path where you want to save the JSON output
+convert_subtitle_to_json(ass_file, json_file)
 
-# data = parse_ass_file("星光闪耀的少年_片花_ptX0861_EP05抢先看：少年们再跳主题曲 ！又哭又笑_简体中文_语料1.ass")
-# word = json_to_word(data)
-# word.save('sample_font.docx')
+data = parse_ass_file("星光闪耀的少年_片花_ptX0861_EP05抢先看：少年们再跳主题曲 ！又哭又笑_简体中文_语料1.ass")
+word = json_to_word(data)
+word.save('sample_font.docx')

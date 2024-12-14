@@ -15,6 +15,8 @@ import re
 
 import pandas as pd
 
+from datetime import datetime
+
 def combine_match(combined_events: list, translated_events: list) -> None:
     for i, event in enumerate(combined_events):
         translated_text = translated_events[i]["Text"].strip()
@@ -86,6 +88,7 @@ def translate_combine(original_data: dict, *translated_doc_path: str, match: boo
 
     diffs = []
 
+    want_match = match
     for path in translated_doc_path:
         print(path)
         untranslated_data, translated_data = parse_docx_file(path)
@@ -93,13 +96,13 @@ def translate_combine(original_data: dict, *translated_doc_path: str, match: boo
         untranslated_events = untranslated_data["Events"]
         translated_events = translated_data["Events"]
 
-        if match:
+        if want_match:
             match = is_timestamp_match(path, original_events, untranslated_events, diffs)
-            print("match!")
-            print("match!")
-            print("match!")
 
         if match:
+            print("match!")
+            print("match!")
+            print("match!")
             combine_match(combined_events, translated_events)
         else:
             combine_not_match(combined_events, untranslated_events, translated_events)
@@ -127,6 +130,61 @@ def find_never_translated(original_data, combined_data):
     never_translated_data["Events"] = never_translated_events
 
     return copy.deepcopy(never_translated_data)
+
+def auto_correct_single(text): 
+    punctuation_map = {
+        "，": ", ",
+        "。": ". ",
+        "？": "? ",
+        "！": "! ",
+        "：": ": ",
+        "；": "; ",
+        "“": " \"",    "”": "\" ",
+        "「": " \"",    "」": "\" ",
+        "『": " \"",    "』": "\" ",
+        "（": " (",    "）": ") ",
+        "【": " [",    "】": "] ",
+        "《": " <",    "》": "> ",
+        "、": ", ",
+        "——": " -- "
+    }
+
+    for old, new in punctuation_map.items():
+        text = text.replace(old, new)
+    
+    # correct spacing
+    if text.count("\n") > 1:
+        text_list = [a.strip() for a in text.split("\n")]
+        text = " ".join(text_list)
+    if "\n" in text:
+        text_list = [a.strip() for a in text.split("\n")]
+        text = "\n".join(text_list)   
+    while "  " in text:
+        text = text.replace("  ", " ")
+
+    punc_spacing_map = {
+        " ,": ",",
+        " .": ".",
+        " ?": "?",
+        " !": "!",
+        " :": ":",
+        " ;": ";",
+    }
+
+    for old, new in punc_spacing_map.items():
+        text = text.replace(old, new)
+
+    text = text.strip()
+
+    return text
+
+def auto_correct(combined_data):
+    events = combined_data["Events"]
+    for event in events:
+        text = event["Text"]
+        text = auto_correct_single(text)
+        event["Text"] = text
+
 
 def drag_and_drop():
     if len(sys.argv) < 3:
@@ -172,7 +230,10 @@ def main():
     file_name = os.path.basename(original_path)
     path_split = os.path.splitext(file_name)
 
-    dir_path = file_directory + "/" + path_split[0] + "/"
+    current_time = datetime.now()
+    formatted_time = current_time.strftime('%Y%m%d%H%M%S')
+
+    dir_path = file_directory + "/" + formatted_time + "/"
     # Create the directory if it doesn't exist
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
@@ -180,9 +241,16 @@ def main():
     else:
         print(f"Directory already exists: {dir_path}")
 
-    target_path_prefix = file_directory + "/" + path_split[0] + "/" + path_split[0]
+    target_path_prefix = dir_path + formatted_time + path_split[0]
+
+    target_path_prefix = target_path_prefix.replace("\\","/")
 
     combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if len(doc_paths) > 1 else False)
+
+    auto_correct(combined_data)
+
+    with open(target_path_prefix + '_combined.json', 'w', encoding='utf-8') as json_file:
+        json.dump(combined_data, json_file, ensure_ascii=False, indent=4)
 
     doc = json_to_word(original_data, combined_data)
     doc.save(target_path_prefix + '_combined.docx')
@@ -199,9 +267,6 @@ def main():
         never_translated_subtitle = json_to_ass(never_translated_data)
         never_translated_doc = json_to_word(never_translated_data)
         never_translated_doc.save(target_path_prefix + '_never_translated.docx')
-
-    with open(target_path_prefix + '_combined.json', 'w', encoding='utf-8') as json_file:
-        json.dump(combined_data, json_file, ensure_ascii=False, indent=4)
 
     with open(target_path_prefix + "_combined" + path_split[1], "w", encoding="utf-8") as file:
         file.write(content)
