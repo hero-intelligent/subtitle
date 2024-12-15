@@ -133,7 +133,7 @@ def find_never_translated(original_data, combined_data):
 
     return copy.deepcopy(never_translated_data)
 
-def auto_correct_single(text): 
+def auto_correct_spacing(text): 
     punctuation_map = {
         "，": ", ",
         "。": ". ",
@@ -180,11 +180,37 @@ def auto_correct_single(text):
 
     return text
 
+def auto_correct_line_breaking(text: str, max_length: int) -> str:
+    lines = [line.strip() for line in text.splitlines()]
+    text = " ".join(lines).strip()
+    
+    if text.startswith("-"):
+        break_point = text.find(" -")
+        if not break_point == -1:
+            first_line = text[:break_point].strip()
+            second_line = text[break_point:].strip()
+            text = first_line + "\n" + second_line
+        return text
+        
+    if len(text) <= max_length:
+        return text
+    
+    break_point = text.find(' ', round(len(text) / 2), len(text))
+
+    if break_point == -1:
+        break_point = round(len(text) / 2)
+    
+    first_line = text[:break_point].strip()
+    second_line = text[break_point:].strip()
+    
+    return f"{first_line}\n{second_line}"
+
 def auto_correct(combined_data):
     events = combined_data["Events"]
     for event in events:
         text = event["Text"]
-        text = auto_correct_single(text)
+        text = auto_correct_spacing(text)
+        text = auto_correct_line_breaking(text, 48)
         event["Text"] = text
 
 
@@ -244,10 +270,11 @@ def main():
         print(f"Directory already exists: {dir_path}")
 
     target_path_prefix = dir_path + formatted_time + path_split[0]
-
     target_path_prefix = target_path_prefix.replace("\\","/")
 
-    combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if len(doc_paths) > 1 else False)
+    is_match = input("type something if you promise that\nthe timestamp of the docx provided is\nperfect match of that of ass provided.")
+    # combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if len(doc_paths) > 1 else False)
+    combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if is_match else False)
 
     auto_correct(combined_data)
 
