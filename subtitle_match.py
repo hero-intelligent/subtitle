@@ -219,6 +219,42 @@ def auto_correct(combined_data):
         text = auto_correct_line_breaking(text, 48)
         event["Text"] = text
 
+def read_replacement_rules(xls_file):
+    # 读取Excel文件，假设左列为待替换内容，右列为替换内容
+    df = pd.read_excel(xls_file, engine='openpyxl')
+    replacements = {}
+    for index, row in df.iterrows():
+        old_text = str(row.iloc[0])
+        new_text = str(row.iloc[1])
+        replacements[old_text] = new_text
+
+    return replacements
+
+def replace_keywords(original_data, combined_data, replacements):
+    original_texts = []
+
+    original_events= original_data["Events"]
+    for event in original_events:
+        text = event["Text"]
+        original_texts.append(text)
+    
+    for i, original_text in enumerate(original_texts):
+        combined_text = original_text
+        if not combined_data["Events"][i]["Text"]:
+            for untranslated_text, new_text in replacements.items():
+                if untranslated_text in combined_text:
+                    combined_text = combined_text.replace(untranslated_text, " " + new_text + " ")
+            
+            while "  " in combined_text:
+                combined_text = combined_text.replace("  ", " ")
+
+            combined_data["Events"][i]["Text"] = combined_text
+
+
+
+
+
+
 
 def drag_and_drop():
     if len(sys.argv) < 3:
@@ -247,6 +283,9 @@ def drag_and_drop():
             original_data = parse_srt_file(arg)
         elif arg.endswith('.docx'):
             doc_paths.append(arg)
+        elif arg.endswith('.xlsx'):
+            xls_file = arg
+            replacements = read_replacement_rules(xls_file)
         else:
             input("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
             sys.exit(1)
@@ -254,11 +293,15 @@ def drag_and_drop():
     if original_path == None:
         input("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
         sys.exit(1)
+    
+    if xls_file == None:
+        replacements = None
+    
 
-    return original_path, original_data, doc_paths
+    return original_path, original_data, doc_paths, replacements
 
 def main():
-    original_path, original_data, doc_paths = drag_and_drop()
+    original_path, original_data, doc_paths, replacements = drag_and_drop()
 
     file_directory = os.path.dirname(original_path)
     file_name = os.path.basename(original_path)
@@ -275,13 +318,17 @@ def main():
     else:
         print(f"Directory already exists: {dir_path}")
 
-    target_path_prefix = dir_path + formatted_time + path_split[0]
+    target_path_prefix = dir_path + formatted_time + "_" + path_split[0]
     target_path_prefix = target_path_prefix.replace("\\","/")
 
     is_match = input("type something if you promise that\nthe timestamp of the docx provided is\nperfect match of that of ass provided.")
     # combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if len(doc_paths) > 1 else False)
     combined_data, diffs = translate_combine(original_data, *doc_paths, match=True if is_match else False)
 
+    never_translated_data = find_never_translated(original_data, combined_data)
+
+    if replacements:
+        replace_keywords(original_data, combined_data, replacements)
     auto_correct(combined_data)
 
     with open(target_path_prefix + '_combined.json', 'w', encoding='utf-8') as json_file:
@@ -289,8 +336,6 @@ def main():
 
     doc = json_to_word(original_data, combined_data)
     doc.save(target_path_prefix + '_combined.docx')
-
-    never_translated_data = find_never_translated(original_data, combined_data)
 
     if path_split[1] == ".srt":
         content = json_to_srt(combined_data)
