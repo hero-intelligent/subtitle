@@ -12,6 +12,7 @@ import json
 import sys
 import os
 import re
+import traceback
 
 import pandas as pd
 
@@ -231,21 +232,30 @@ def read_replacement_rules(xls_file):
     return replacements
 
 def replace_keywords(original_data, combined_data, replacements):
-    original_texts = []
+    reference_data = copy.deepcopy(original_data)
+    reference_events = reference_data["Events"]
 
-    original_events= original_data["Events"]
-    for event in original_events:
-        text = event["Text"]
-        original_texts.append(text)
+    for event in reference_events:
+        event["Text"] = ""
+
+    original_events = original_data["Events"]
+    for i, event in enumerate(original_events):
+        original_text = event["Text"]
+
+        if not combined_data["Events"][i]["Text"]:
+            reference_text = original_text
+
+            for untranslated_text, new_text in replacements.items():
+                if untranslated_text in reference_text:
+                    reference_text = reference_text.replace(untranslated_text, " " + new_text + " ")
+            
+            while "  " in reference_text:
+                reference_text = reference_text.replace("  ", " ")
+
+            if reference_text != original_text:
+                reference_events[i]["Text"] = "# " + reference_text
     
-    for i, original_text in enumerate(original_texts):
-        combined_text = original_text
-        for untranslated_text, new_text in replacements.items():
-            x = untranslated_text in combined_text
-            y = bool(combined_data["Events"][i]["Text"])
-            if x and not y:
-                combined_text = combined_text.replace(untranslated_text, " " + new_text + " ")
-                combined_data["Events"][i]["Text"] = combined_text
+    return copy.deepcopy(reference_data)
 
 
 
@@ -265,13 +275,12 @@ def drag_and_drop():
     # 初始化变量
     original_path = None
     doc_paths = []
+    xls_file = ""
 
     # 遍历传入的参数并进行分类
     for arg in args:
         if not os.path.exists(arg):
-            print(f"Error: ASS file '{arg}' not found.")
-            input("Press Enter to exit")
-            sys.exit(1)
+            raise ValueError(f"Error: ASS file '{arg}' not found.")
         elif arg.endswith('.ass'):
             original_path = arg
             original_data = parse_ass_file(arg)
@@ -284,14 +293,13 @@ def drag_and_drop():
             xls_file = arg
             replacements = read_replacement_rules(xls_file)
         else:
-            input("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
-            sys.exit(1)
+            raise ValueError("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
 
     if original_path == None:
-        input("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
-        sys.exit(1)
+        raise ValueError("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
+
     
-    if xls_file == None:
+    if not xls_file:
         replacements = None
     
 
@@ -324,14 +332,18 @@ def main():
 
     never_translated_data = find_never_translated(original_data, combined_data)
 
-    if replacements:
-        replace_keywords(original_data, combined_data, replacements)
     auto_correct(combined_data)
+
+    if replacements:
+        reference_data = replace_keywords(original_data, combined_data, replacements)
+        auto_correct(reference_data)
+    else:
+        reference_data = None
 
     with open(target_path_prefix + '_combined.json', 'w', encoding='utf-8') as json_file:
         json.dump(combined_data, json_file, ensure_ascii=False, indent=4)
 
-    doc = json_to_word(original_data, combined_data)
+    doc = json_to_word(original_data, combined_data, reference_data)
     doc.save(target_path_prefix + '_combined.docx')
 
     if path_split[1] == ".srt":
@@ -365,6 +377,8 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        print(e)
-    
+        print("An error occurred:", file=sys.stderr)
+        print(e, file = sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+
     input("\n\nPress Enter to exit.")

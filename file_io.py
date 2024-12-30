@@ -438,13 +438,20 @@ def json_to_srt(json_data: dict, not_keep_index: bool = True) -> str:
     return "\n".join(srt_output)
 
 # Function to convert JSON to Word table format
-def json_to_word(original_data: dict, translated_data: dict = None, force_disgard_index_and_time: bool = True) -> Document:
+def json_to_word(
+        original_data: dict,
+        translated_data: dict = None,
+        reference_data: dict = None,
+        force_disgard_index_and_time: bool = True
+        ) -> Document:
+    
+
     doc = Document()
 
     original_events = original_data['Events']
 
     # Create a table with 4 columns: Number, Time (start -> end), Subtitle Text, Empty
-    table = doc.add_table(rows=len(original_events), cols=4)
+    table = doc.add_table(rows=len(original_events), cols=4 if reference_data is None else 5)
     table.style = 'Table Grid'
 
     # Loop through events and fill in the table
@@ -485,6 +492,35 @@ def json_to_word(original_data: dict, translated_data: dict = None, force_disgar
                 print(row_cells[0].text, row_cells[1].text, row_cells[2].text)
                 print("translated data:")
                 print(str(index), f"{start_time} --> {end_time}", subtitle_text)
+
+
+
+    if reference_data is not None:
+        reference_events = reference_data['Events']
+        # Loop through events and fill in the table
+        for i, event in tqdm(enumerate(reference_events), desc="filling reference in docx file", total=len(reference_events)):
+            index = event['Index']
+            start_time = event['Start']
+            end_time = event['End']
+            subtitle_text = event['Text']
+
+            row_cells = table.rows[i].cells
+
+            is_index_same = row_cells[0].text == str(index)  # Number
+            is_timestamp_same = row_cells[1].text == f"{start_time} --> {end_time}"  # Time range
+
+            if force_disgard_index_and_time:
+                row_cells[4].text = subtitle_text  # Empty column
+            elif is_index_same and is_timestamp_same:
+                row_cells[4].text = subtitle_text  # Empty column
+            else:
+                print("index or time match failed.")
+                print("original data:")
+                print(row_cells[0].text, row_cells[1].text, row_cells[2].text)
+                print("translated data:")
+                print(str(index), f"{start_time} --> {end_time}", subtitle_text)
+
+
 
     # set_font_based_on_characters(doc)
     doc = change_font(doc)
