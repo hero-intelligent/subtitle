@@ -231,7 +231,15 @@ def read_replacement_rules(xls_file):
 
     return replacements
 
-def replace_keywords(original_data, combined_data, replacements):
+def replace_keywords(text: str, replacements:dict[str:str]) -> str:
+    for untranslated_text, new_text in replacements.items():
+        if untranslated_text in text:
+            text = text.replace(untranslated_text, " " + new_text + " ")
+    while "  " in text:
+        text = text.replace("  ", " ")
+    return text
+
+def apply_replacements(original_data, combined_data, replacements):
     reference_data = copy.deepcopy(original_data)
     reference_events = reference_data["Events"]
 
@@ -243,31 +251,16 @@ def replace_keywords(original_data, combined_data, replacements):
         original_text = event["Text"]
 
         if not combined_data["Events"][i]["Text"]:
-            reference_text = original_text
-
-            for untranslated_text, new_text in replacements.items():
-                if untranslated_text in reference_text:
-                    reference_text = reference_text.replace(untranslated_text, " " + new_text + " ")
-            
-            while "  " in reference_text:
-                reference_text = reference_text.replace("  ", " ")
-
+            reference_text = replace_keywords(original_text, replacements)
             if reference_text != original_text:
                 reference_events[i]["Text"] = "# " + reference_text
     
     return copy.deepcopy(reference_data)
 
-
-
-
-
-
-
 def drag_and_drop():
     if len(sys.argv) < 3:
         print("Usage: python file_combine.py <path/to/original/subtitle> <path/to/translated/doc> [<path/to/translated/doc> <path/to/translated/doc> <path/to/translated/doc> ...]")
-        input("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
-        sys.exit(1)
+        raise ValueError("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
 
     # 获取命令行参数
     args = sys.argv[1:]
@@ -298,10 +291,8 @@ def drag_and_drop():
     if original_path == None:
         raise ValueError("ass or srt along with translated docx required. Only single original ass or srt file allowed.\nPress Enter to exit...")
 
-    
     if not xls_file:
         replacements = None
-    
 
     return original_path, original_data, doc_paths, replacements
 
@@ -335,7 +326,7 @@ def main():
     auto_correct(combined_data)
 
     if replacements:
-        reference_data = replace_keywords(original_data, combined_data, replacements)
+        reference_data = apply_replacements(original_data, combined_data, replacements)
         auto_correct(reference_data)
     else:
         reference_data = None

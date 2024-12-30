@@ -18,6 +18,8 @@ from docx import Document
 
 from io import BytesIO
 
+from accept_review import accept_changes
+
 data_template = {
     "ScriptInfo": {},
     "Styles": [],
@@ -144,42 +146,6 @@ def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
     elif output_format == "ass":
         return f"{int(hours):01}:{int(minutes):02}:{int(seconds):02}.{int(round(milliseconds / 1000, 2) * 100)}"
 
-def accept_changes_in_docx(docx_path:str) -> BytesIO:
-    # Open the docx file (it's a zip archive)
-    with ZipFile(docx_path, 'r') as docx:
-        # Extract the document.xml file, which contains the main content
-        document_xml = docx.read('word/document.xml')
-
-        # Parse the XML content using BeautifulSoup
-        soup = BeautifulSoup(document_xml, 'lxml-xml')
-
-        # Loop through all the "w:ins" and "w:del" elements
-        # "w:ins" means inserted text and "w:del" means deleted text in tracked changes
-        for ins_tag in soup.find_all('w:ins'):
-            ins_tag.unwrap()  # This removes the insertion mark but keeps the text
-
-        for del_tag in soup.find_all('w:del'):
-            del_tag.decompose()  # Completely remove the deleted element
-
-        # Convert the modified BeautifulSoup object back to XML
-        modified_xml = str(soup)
-
-        output_stream = BytesIO()
-        # Write the modified XML content back into the DOCX file
-        with ZipFile(output_stream, 'w') as docx_out:
-            # Add all original files except the document.xml
-            for file in docx.namelist():
-                if file != 'word/document.xml':
-                    docx_out.writestr(file, docx.read(file))
-
-            # Write the modified document.xml into the DOCX package
-            docx_out.writestr('word/document.xml', modified_xml)
-
-    print(f"Changes accepted and saved to {output_stream}")
-
-    output_stream.seek(0)
-    return output_stream
-
 def parse_ass_file(ass_file_path: str) -> dict:
     data = copy.deepcopy(data_template)
 
@@ -290,8 +256,10 @@ def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = 
     data_left = copy.deepcopy(common_template())
     data_right = copy.deepcopy(common_template())
 
-    # 打开docx文件
-    stream = accept_changes_in_docx(docx_file_path)
+    stream = BytesIO()
+    accept_changes(docx_file_path, stream)
+    stream.seek(0)
+
     doc = Document(stream)
 
     rows_translated = 0
