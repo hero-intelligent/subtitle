@@ -240,15 +240,12 @@ def replace_keywords(original_data, combined_data, replacements):
     
     for i, original_text in enumerate(original_texts):
         combined_text = original_text
-        if not combined_data["Events"][i]["Text"]:
-            for untranslated_text, new_text in replacements.items():
-                if untranslated_text in combined_text:
-                    combined_text = combined_text.replace(untranslated_text, " " + new_text + " ")
-            
-            while "  " in combined_text:
-                combined_text = combined_text.replace("  ", " ")
-
-            combined_data["Events"][i]["Text"] = combined_text
+        for untranslated_text, new_text in replacements.items():
+            x = untranslated_text in combined_text
+            y = bool(combined_data["Events"][i]["Text"])
+            if x and not y:
+                combined_text = combined_text.replace(untranslated_text, " " + new_text + " ")
+                combined_data["Events"][i]["Text"] = combined_text
 
 
 
