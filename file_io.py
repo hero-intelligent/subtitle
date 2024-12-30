@@ -240,13 +240,28 @@ def parse_srt_file(srt_file_path: str) -> dict:
 
         event_data = line.split("\n", 2)  # Split the suptitle into 3 parts
 
+        index = event_data[0]
+        start = event_data[1].split("-->",1)[0].strip()
+        end = event_data[1].split("-->",1)[1].strip()
+
+        if len(event_data) == 3:
+            text = event_data[2]
+        else:
+            text = ""
+
+        for c in "[]()（）【】":
+            if c in text:
+                style = "Descriptive-920"
+            else:
+                style = event_template.get("Style", "")
+
         event = {
             **event_template,
-            "Index": event_data[0],
-            "Start": event_data[1].split("-->",1)[0].strip(),
-            "End": event_data[1].split("-->",1)[1].strip(),
-            "Text": event_data[2],
-            "Style": "Descriptive-920" if any(c in event_data[2] for c in "[]()（）【】") else event_template.get("Style", "")
+            "Index": index,
+            "Start": start,
+            "End": end,
+            "Text": text,
+            "Style": style
         }
         data["Events"].append(event)
 
