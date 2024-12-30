@@ -248,6 +248,7 @@ def parse_srt_file(srt_file_path: str) -> dict:
             text = event_data[2]
         else:
             text = ""
+            warnings.warn(f"line {index} is empty!", UserWarning)
 
         for c in "[]()（）【】":
             if c in text:
