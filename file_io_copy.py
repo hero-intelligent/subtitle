@@ -1,10 +1,7 @@
 import os
-import io
 import copy
 import json
 import re
-import csv
-
 import warnings
 
 from docx import Document
@@ -12,11 +9,19 @@ from docx.shared import Pt
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-import pandas as pd
-
 from tqdm import tqdm
 
-from file_io import parse_ass_file
+from zipfile import ZipFile
+import xml.etree.ElementTree as ET
+from bs4 import BeautifulSoup
+from docx import Document
+
+from io import BytesIO
+
+from accept_review import accept_changes
+from time_reform import time_str_to_ms, time_ms_to_str
+
+import pandas as pd
 
 data_template = {
     "ScriptInfo": {},
@@ -104,208 +109,518 @@ event_template = {
     "Effect": "",
 }
 
-def timestamp_reform(time_str: str, output_format: str = "srt") -> str:
-    pattern_srt = r"^(\d{2}):(\d{2}):(\d{2}),(\d{3})$"
-    pattern_ass = r"^(\d{1,2}):(\d{2}):(\d{2})\.(\d{2})$"
-    pattern_wrong = r"^(\d+):(\d{2}):(\d{2})[:.,](\d+)$"
 
-    # 使用正则表达式进行匹配
-    match_srt = re.match(pattern_srt, time_str)
-    match_ass = re.match(pattern_ass, time_str)
-    match_wrong = re.match(pattern_wrong, time_str)
 
-    if match_srt:
-        # print("匹配srt成功！")
-        hours = int(match_srt.group(1))
-        minutes = int(match_srt.group(2))
-        seconds = int(match_srt.group(3))
-        milliseconds = int(round(float("0." + match_srt.group(4)) * 1000))
-        # print(f"小时: {hours}, 分钟: {minutes}, 秒: {seconds}, 毫秒: {milliseconds}")
-    elif match_ass:
-        # print("匹配ass成功！")
-        hours = int(match_ass.group(1))
-        minutes = int(match_ass.group(2))
-        seconds = int(match_ass.group(3))
-        milliseconds = int(round(float("0." + match_ass.group(4)) * 1000))
-        # print(f"小时: {hours}, 分钟: {minutes}, 秒: {seconds}, 毫秒: {milliseconds}")
-    elif match_wrong:
-        warnings.warn(f"Invalid format detected: {time_str}", UserWarning)
-        hours = int(match_wrong.group(1))
-        minutes = int(match_wrong.group(2))
-        seconds = int(match_wrong.group(3))
-        milliseconds = int(round(float("0." + match_wrong.group(4)) * 1000))
-        print(f"小时: {hours}, 分钟: {minutes}, 秒: {seconds}, 毫秒: {milliseconds}")
-    else:
-        print(f"{time_str}匹配失败")
-        return None
 
-    if output_format == "srt":
-        return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02},{milliseconds:03}"
-    elif output_format == "ass":
-        return f"{int(hours):01}:{int(minutes):02}:{int(seconds):02}.{int(round(milliseconds / 1000, 2) * 100)}"
 
-class Ass:
-    def __init__(self, path: str):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Subtitle:
+    def __init__(self, path):
         self.path = path
-        with open(self.path, "r", encoding="utf-8") as file:
-            self.file = file.read()
-            self.file = self.file.lstrip('\ufeff')  # Remove BOM if it's at the start
+        self.read()
 
-        self.data = self.parse(self.file)
+        self._indexes = []
+        self._starts = []
+        self._ends = []
+        self._texts = []
 
-        self.ass = self.file
-        self.srt = self.convert_srt(self.events)
+    def read(self) -> dict:
+        with open(self.path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            content = content.lstrip('\ufeff')  # Remove BOM if it's at the start
+            content = content.strip()
+            self.content = content
+
+    # Update self._events whenever one of the lists is updated
+    def _update_events_dict(self):
+        self._events_dict = {
+            "Indexes": self._indexes,
+            "Starts": self._starts,
+            "Ends": self._ends,
+            "Texts": self._texts
+        }
+
+    def _update_events(self):
+        self._update_events_dict()
+        lengths = [len(attribute) for attribute in self._events_dict.values()]
+
+        # 检查是否所有表的长度相同
+        if len(set(lengths)) != 1:
+            raise ValueError(f"lenth not equal! {lengths}")
+
+        self.df = pd.DataFrame(self._events_dict)
+        events = self.df.to_dict(orient="records")
+        
+        self._events = events
+
+    # Getter for self.events_dict
+    @property
+    def events_dict(self):
+        self._update_events_dict()
+        return self._events_dict
+    
+    @events_dict.setter
+    def events_dict(self, value):
+        self._events_dict = value
+
+        self.df = pd.DataFrame(self._events_dict)
+        events = self.df.to_dict(orient="records")
+        self._events = events
+
+    # Getter for self.events
+    @property
+    def events(self):
+        # self._update_events()
+        return self._events
+    
+    @events.setter
+    def events(self, value):
+        self._events = value
+
+        self.df = pd.DataFrame(self._events)
+        events_dict = self.df.to_dict(orient="list")
+        self._events_dict = events_dict
+
+    # Setter for self.indexes
+    @property
+    def indexes(self):
+        return self._indexes
+
+    @indexes.setter
+    def indexes(self, value):
+        self._indexes = value
+
+    # Setter for self.starts
+    @property
+    def starts(self):
+        return self._starts
+
+    @starts.setter
+    def starts(self, value):
+        self._starts = value
+
+    # Setter for self.ends
+    @property
+    def ends(self):
+        return self._ends
+
+    @ends.setter
+    def ends(self, value):
+        self._ends = value
+
+    # Setter for self.texts
+    @property
+    def texts(self):
+        return self._texts
+
+    @texts.setter
+    def texts(self, value):
+        self._texts = value
 
 
-    def parse(self, file):
+class Srt(Subtitle):
+    def __init__(self, path):
+        super().__init__(path)
+        self.parse()
+
+        self._update_events()
+
+    def parse(self):
+        for line in tqdm(self.content.split("\n\n"), desc="parsing srt file"):
+            line = line.strip()
+
+            event_data = line.split("\n", 2)  # Split the suptitle into 3 parts
+
+            index = event_data[0]
+            self._indexes.append(int(index))
+
+            start = event_data[1].split("-->",1)[0].strip()
+            self._starts.append(time_str_to_ms(start))
+
+            end = event_data[1].split("-->",1)[1].strip()
+            self._ends.append(time_str_to_ms(end))
+
+            if len(event_data) == 3:
+                text = event_data[2]
+            else:
+                text = ""
+                warnings.warn(f"line {index} is empty!", UserWarning)
+            self._texts.append(text)
+
+class Ass(Subtitle):
+    def __init__(self, path):
+        super().__init__(path)
+
         self.script_info = {}
         self.styles = []
-        self.events = []
+        self._events_whole = []
 
-        self.current_section = None
-        for line in tqdm(file.splitlines(), desc="reading ass file"):
+        self.parse()
+
+        self.df = pd.DataFrame(self._events_whole)
+        events_dict = self.df.to_dict(orient="list")
+        print(events_dict)
+        for key, value in events_dict.items():
+            if key == "Index":
+                self._indexes = value
+            elif key == "Start":
+                self._starts = [time_str_to_ms(time) for time in value]
+            elif key == "End":
+                self._ends = [time_str_to_ms(time) for time in value]
+            elif key == "Text":
+                self._texts = value
+
+        self._update_events()
+
+    @staticmethod
+    def find_section(line,section):
+        pattern = r"^\[(.*)\]$"
+        match = re.match(pattern,line)
+        if match:
+            section = match.group(1)
+        return section
+    
+    def parse(self):
+        section = None
+
+        event_index = 0
+
+        for line in tqdm(self.content.splitlines(), desc="parsing ass file"):
+            line = line.strip()
+
             if not line or line.startswith(";"):  # Skip empty lines and comments
                 continue
 
-            self.current_section = self.section(line, self.current_section)
-            self.parse_line(self.current_section, line)
+            section_previous = section
+            section = self.find_section(line, section)
+            if section_previous != section:
+                continue
 
-        data = {
-            "ScriptInfo": self.script_info,
-            "Styles": self.styles,
-            "Events": self.events
-        }
+            # Parse Script Info
+            if "Info" in section and ":" in line:
+                key, value = line.split(":", 1)
+                self.script_info[key.strip()] = value.strip()
 
-        return data
+            # Parse Styles
+            elif "Styles" in section and line.startswith("Format:"):
+                self.style_format = line.split(":", 1)[1].split(",")
+                self.style_format = [item.strip() for item in self.style_format]
 
-    def parse_line(self, section, line):
-        line = line.strip()
+            elif "Styles" in section and line.startswith("Style:"):
+                style_data = line.split(":", 1)[1].split(",", len(self.style_format))  # Split into 24 elements (to match the style format)
+                style_data = [item.strip() for item in style_data]
+                style = dict(zip(self.style_format, style_data))
+                self.styles.append(style)
 
-        # Parse Script Info
-        if section == "ScriptInfo" and not line.startswith("[") and ":" in line:
-            key, value = line.split(":", 1)
-            self.script_info[key.strip()] = value.strip()
-        elif line.startswith("Format:"):
-            self.parse_format(line, section)
-        elif section == "Styles" and line.startswith("Style:"):
-            style = self.parse_style(line, self.style_format)
-            self.styles.append(style)
-        elif section == "Events" and line.startswith("Dialogue:"):
-            event = self.parse_event(line, self.event_format)
-            self.events.append(event)
+            # Parse Events
+            elif section == "Events" and line.startswith("Format:"):
+                self.event_format = line.split(":", 1)[1].split(",")
+                self.event_format = [item.strip() for item in self.event_format]
+                self.event_format.append("Index")
+                
+            elif section == "Events" and line.startswith("Dialogue:"):
+                event_index = event_index + 1
+                event_data = line.split(":", 1)[1].split(",", len(self.event_format) - 1)  # Split the dialogue data into 9 parts
+                event_data = [item.strip() for item in event_data]
+                event_data.append(event_index)
 
-    def section(self, line, section):
-        if line.startswith("[Script Info]"):
-            section = "ScriptInfo"
-        elif line.startswith("[V4+ Styles]"):
-            section = "Styles"
-        elif line.startswith("[Events]"):
-            section = "Events"
-
-        return section
-
-    def parse_format(self, line, section):
-        format = line.split(":", 1)[1].strip().split(",")
-        if section == "Styles":
-            self.style_format = format
-        elif section == "Events":
-            self.event_format = format
-
-    def parse_style(self, line, format):
-        # 将 Style 行按逗号分隔（最多分成 len(field_names) 部分）
-        style_data = line.split(":", 1)[1].split(",", len(format) - 1)
-
-        style_data = [item.strip() for item in style_data]
-        if len(format) == len(style_data):
-            style = dict(zip(format,style_data))
-        else:
-            print(style_data)
-        # # 将每个字段与对应的字段名称配对，并生成字典
-        # style = {}
-        # for i, field in enumerate(style_data):
-        #     key = format[i].strip()
-        #     style[key] = field.strip()
-
-        return style
-
-    def parse_event(self, line, format):
-        # 将 Dialogue 行按逗号分隔（最多分成 len(field_names) 部分）
-        event_data = line.split(":", 1)[1].split(",", len(format) -1)
-        event_data = [item.strip() for item in event_data]
-        if len(format) == len(event_data):
-            event = dict(zip(format,event_data))
-        else:
-            print(event_data)
-        # event = {}
-        # for i, field in enumerate(event_data):
-        #     key = format[i].strip()
-        #     event[key] = field.strip()
-        updates = {
-            "Start": timestamp_reform(event_data[1].strip()),   # SRT style
-            "End": timestamp_reform(event_data[2].strip()),     # SRT style
-            "Text": event_data[9].strip().replace("\\N","\n")   # SRT Style
-        }
-        event.update(updates)
-
-        return event
-
-    def convert_srt(self, events) -> str:
-        srt_output = []
-
-        for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
-            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
-            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
-
-            start_time = timestamp_reform(start_time, output_format="srt")
-            end_time = timestamp_reform(end_time, output_format="srt")
-            text = event['Text']
-
-            # Format the SRT entry
-            srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
-            srt_output.append(srt_entry)
-
-        return "\n".join(srt_output)
-
-a = Ass("testfile/20241125/1.ass")
-data = a.data
-with open("a.json","w",encoding="utf-8") as file:
-    j = json.dumps(data, indent=4, ensure_ascii=False)
-    file.write(j)
-with open("a.srt","w",encoding="utf-8") as subtitle:
-    subtitle.write(a.srt)
+                event = dict(zip(self.event_format, event_data))
+                self._events_whole.append(event)
 
 
 
-def parse_srt_file(srt_file_path: str) -> dict:
-    data = copy.deepcopy(common_template())
 
-    with open(srt_file_path, 'r', encoding='utf-8') as file:
-        content = file.read()
-        content = content.lstrip('\ufeff')  # Remove BOM if it's at the start
-        content = content.strip()
 
-    for line in tqdm(content.split("\n\n"), desc="parsing srt file"):
-        line = line.strip()
 
-        event_data = line.split("\n", 2)  # Split the suptitle into 3 parts
 
-        event = {
-            **event_template,
-            "Start": event_data[1].split("-->",1)[0].strip(),
-            "End": event_data[1].split("-->",1)[1].strip(),
-            "Text": event_data[2],
-            "Style": "Descriptive-920" if any(c in event_data[2] for c in "[]()（）【】") else event_template.get("Style", "")
-        }
-        data["Events"].append(event)
 
-    return copy.deepcopy(data)
+
+
+
+if __name__ == "__main__":
+    import time
+
+    a = Ass("testfile\\20241118\\星光闪耀的少年_片花_ptX0861_EP05抢先看：少年们再跳主题曲 ！又哭又笑_简体中文_语料1.ass")
+    # a = Srt("testfile\\20241118\\output_test.ass")
+    # a.texts[1] = "add"
+    event = a.events
+    # df = pd.DataFrame(event)
+    with open("test.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(event, indent=4, ensure_ascii=False))
+    print(json.dumps(event, indent=4))
+    # print(df)
+    texts = copy.deepcopy(a.texts)
+    length = len(texts)
+    for i in range(length):
+        texts[i] = str(i)
+
+    # start_time = time.time()  # 记录开始时间
+
+    # 需要测试的代码
+    # for i in tqdm(range(30000)):
+    a.texts = copy.deepcopy(texts)
+
+    event = a.events_dict
+    # df = pd.DataFrame(event)
+    print(json.dumps(event, indent=4))
+    # print(df)
+
+    # end_time = time.time()  # 记录结束时间
+
+    # execution_time = end_time - start_time  # 计算执行时间
+
+    # avg = execution_time / 30000 / length
+    # print(f"代码执行时间: {execution_time} 秒, 平均一次{avg}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = True) -> tuple[dict, dict]:
     data_left = copy.deepcopy(common_template())
     data_right = copy.deepcopy(common_template())
 
-    # 打开docx文件
-    doc = Document(docx_file_path)
+    stream = BytesIO()
+    accept_changes(docx_file_path, stream)
+    stream.seek(0)
+
+    doc = Document(stream)
 
     rows_translated = 0
     rows_not_translated = 0
@@ -320,6 +635,7 @@ def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = 
 
         event_left = {
             **copy.deepcopy(event_template),
+            "Index": int(row.cells[0].text.strip()),
             "Start": row.cells[1].text.split("-->",1)[0].strip(),
             "End": row.cells[1].text.split("-->",1)[1].strip(),
             "Text": row.cells[2].text.strip(),
@@ -328,6 +644,7 @@ def parse_docx_file(docx_file_path: str, both: bool = False, translated: bool = 
 
         event_right = {
             **copy.deepcopy(event_template),
+            "Index": int(row.cells[0].text.strip()),
             "Start": row.cells[1].text.split("-->",1)[0].strip(),
             "End": row.cells[1].text.split("-->",1)[1].strip(),
             "Text": row.cells[3].text.strip(),
@@ -416,44 +733,65 @@ def json_to_ass(json_data: dict) -> str:
 
     return "\n".join(ass_output)
 
-def json_to_srt(json_data: dict) -> str:
+def json_to_srt(json_data: dict, not_keep_index: bool = True) -> str:
     # print(json_data)
     events = json_data['Events']
     srt_output = []
+    if not_keep_index:
+        for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
+            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
+            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
 
-    for i, event in tqdm(enumerate(events), desc="generating srt", total = len(events)):
-        start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
-        end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
+            start_time = timestamp_reform(start_time, output_format="srt")
+            end_time = timestamp_reform(end_time, output_format="srt")
+            text = event['Text']
 
-        start_time = timestamp_reform(start_time, output_format="srt")
-        end_time = timestamp_reform(end_time, output_format="srt")
-        text = event['Text']
+            # Format the SRT entry
+            srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
+            srt_output.append(srt_entry)
+    else:
+        for event in tqdm(events, desc="generating srt", total = len(events)):
+            index = str(event.get("Index", "")).strip()
+            start_time = str(event.get("Start", "")).strip()  # Convert to SRT time format
+            end_time = str(event.get("End", "")).strip()  # Convert to SRT time format
 
-        # Format the SRT entry
-        srt_entry = f"{i + 1}\n{start_time} --> {end_time}\n{text}\n"
-        srt_output.append(srt_entry)
+            start_time = timestamp_reform(start_time, output_format="srt")
+            end_time = timestamp_reform(end_time, output_format="srt")
+            text = event['Text']
+
+            # Format the SRT entry
+            srt_entry = f"{index}\n{start_time} --> {end_time}\n{text}\n"
+            srt_output.append(srt_entry)
 
     return "\n".join(srt_output)
 
 # Function to convert JSON to Word table format
-def json_to_word(original_data: dict, translated_data: dict = None) -> Document:
+def json_to_word(
+        original_data: dict,
+        translated_data: dict = None,
+        reference_data: dict = None,
+        force_disgard_index_and_time: bool = True
+        ) -> Document:
+    
+
     doc = Document()
 
     original_events = original_data['Events']
 
     # Create a table with 4 columns: Number, Time (start -> end), Subtitle Text, Empty
-    table = doc.add_table(rows=len(original_events), cols=4)
+    table = doc.add_table(rows=len(original_events), cols=4 if reference_data is None else 5)
     table.style = 'Table Grid'
 
     # Loop through events and fill in the table
     for i, event in tqdm(enumerate(original_events), desc="filling original text in docx file", total=len(original_events)):
+        index = event['Index']
         start_time = event['Start']
         end_time = event['End']
         subtitle_text = event['Text']
 
         row_cells = table.rows[i].cells
 
-        row_cells[0].text = str(i + 1)  # Number
+        row_cells[0].text = str(index)  # Number
         row_cells[1].text = f"{start_time} --> {end_time}"  # Time range
         row_cells[2].text = subtitle_text  # Subtitle text
         row_cells[3].text = ""  # Empty column
@@ -462,18 +800,55 @@ def json_to_word(original_data: dict, translated_data: dict = None) -> Document:
         translated_events = translated_data['Events']
         # Loop through events and fill in the table
         for i, event in tqdm(enumerate(translated_events), desc="filling translated text in docx file", total=len(translated_events)):
+            index = event['Index']
             start_time = event['Start']
             end_time = event['End']
             subtitle_text = event['Text']
 
             row_cells = table.rows[i].cells
 
-            is_index_same = row_cells[0].text == str(i + 1)  # Number
+            is_index_same = row_cells[0].text == str(index)  # Number
             is_timestamp_same = row_cells[1].text == f"{start_time} --> {end_time}"  # Time range
 
-            # if is_index_same and is_timestamp_same:
-            if True:
+            if force_disgard_index_and_time:
                 row_cells[3].text = subtitle_text  # Empty column
+            elif is_index_same and is_timestamp_same:
+                row_cells[3].text = subtitle_text  # Empty column
+            else:
+                print("index or time match failed.")
+                print("original data:")
+                print(row_cells[0].text, row_cells[1].text, row_cells[2].text)
+                print("translated data:")
+                print(str(index), f"{start_time} --> {end_time}", subtitle_text)
+
+
+
+    if reference_data is not None:
+        reference_events = reference_data['Events']
+        # Loop through events and fill in the table
+        for i, event in tqdm(enumerate(reference_events), desc="filling reference in docx file", total=len(reference_events)):
+            index = event['Index']
+            start_time = event['Start']
+            end_time = event['End']
+            subtitle_text = event['Text']
+
+            row_cells = table.rows[i].cells
+
+            is_index_same = row_cells[0].text == str(index)  # Number
+            is_timestamp_same = row_cells[1].text == f"{start_time} --> {end_time}"  # Time range
+
+            if force_disgard_index_and_time:
+                row_cells[4].text = subtitle_text  # Empty column
+            elif is_index_same and is_timestamp_same:
+                row_cells[4].text = subtitle_text  # Empty column
+            else:
+                print("index or time match failed.")
+                print("original data:")
+                print(row_cells[0].text, row_cells[1].text, row_cells[2].text)
+                print("translated data:")
+                print(str(index), f"{start_time} --> {end_time}", subtitle_text)
+
+
 
     # set_font_based_on_characters(doc)
     doc = change_font(doc)
@@ -535,10 +910,10 @@ def convert_subtitle_to_json(subtitle_file_path, json_file_path):
         json.dump(data, json_file, ensure_ascii=False, indent=4)
 
 # Example usage
-ass_file = "example.ass"  # Path to your ASS file
-json_file = "X0643_KIRA the World EP02：少年们的 STAR MT 比赛_pt.json"  # Path where you want to save the JSON output
-convert_subtitle_to_json(ass_file, json_file)
+# ass_file = "example.ass"  # Path to your ASS file
+# json_file = "X0643_KIRA the World EP02：少年们的 STAR MT 比赛_pt.json"  # Path where you want to save the JSON output
+# convert_subtitle_to_json(ass_file, json_file)
 
-data = parse_ass_file("星光闪耀的少年_片花_ptX0861_EP05抢先看：少年们再跳主题曲 ！又哭又笑_简体中文_语料1.ass")
-word = json_to_word(data)
-word.save('sample_font.docx')
+# data = parse_ass_file("星光闪耀的少年_片花_ptX0861_EP05抢先看：少年们再跳主题曲 ！又哭又笑_简体中文_语料1.ass")
+# word = json_to_word(data)
+# word.save('sample_font.docx')
