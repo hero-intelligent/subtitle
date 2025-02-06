@@ -471,7 +471,7 @@ if __name__ == "__main__":
     # df = pd.DataFrame(event)
     with open("test.json", "w", encoding="utf-8") as f:
         f.write(json.dumps(event, indent=4, ensure_ascii=False))
-    print(json.dumps(event, indent=4))
+    # print(json.dumps(event, indent=4))
     # print(df)
     texts = copy.deepcopy(a.texts)
     length = len(texts)
@@ -486,7 +486,7 @@ if __name__ == "__main__":
 
     event = a.events_dict
     # df = pd.DataFrame(event)
-    print(json.dumps(event, indent=4))
+    # print(json.dumps(event, indent=4))
     # print(df)
 
     # end_time = time.time()  # 记录结束时间
