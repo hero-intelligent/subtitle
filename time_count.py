@@ -1,10 +1,10 @@
-from file_io import parse_docx_file
-from file_io import parse_ass_file
-from file_io import parse_srt_file
-from file_io import json_to_word
-from file_io import json_to_ass
-from file_io import json_to_srt
-from file_io import timestamp_reform
+from package.file_io import parse_docx_file
+from package.file_io import parse_ass_file
+from package.file_io import parse_srt_file
+from package.file_io import json_to_word
+from package.file_io import json_to_ass
+from package.file_io import json_to_srt
+from package.file_io import timestamp_reform
 from docx import Document
 import copy
 import json

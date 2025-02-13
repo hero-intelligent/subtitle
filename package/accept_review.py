@@ -75,25 +75,38 @@ def accept_changes(input, output):
 def comments_anonymize(input, output, name):
     with ZipFile(input, "r") as docx, ZipFile(output, "w") as docx_out:
         for file_name in docx.namelist():
+            try:  
+                with docx.open(file_name, 'r') as file:  
+                    chunk = file.read(1024)  # 读取前1024个字节  
+                    file.seek(0)  # 重置文件指针到开始位置  
+                    # 尝试以UTF-8编码解码  
+                    chunk.decode('utf-8')  
+                is_text = True  
+            except UnicodeDecodeError:  
+                is_text = False  
+
             xml_content = docx.read(file_name)
-            soup = BeautifulSoup(xml_content, 'lxml-xml')
+            if is_text:
+                soup = BeautifulSoup(xml_content, 'lxml-xml')
 
-            if file_name == "docProps/core.xml":
-                dc_creator = soup.find('dc:creator')
-                if dc_creator:
-                    dc_creator.string = name
-                cp_last_modified_by = soup.find('cp:lastModifiedBy')
-                if cp_last_modified_by:
-                    cp_last_modified_by.string = name
+                if file_name == "docProps/core.xml":
+                    dc_creator = soup.find('dc:creator')
+                    if dc_creator:
+                        dc_creator.string = name
+                    cp_last_modified_by = soup.find('cp:lastModifiedBy')
+                    if cp_last_modified_by:
+                        cp_last_modified_by.string = name
 
-            # for tag in soup.find_all(attrs={'author': True}):
-            for tag in tqdm(soup.find_all(), file_name):
-                for attr in tag.attrs:
-                    if "author" in attr:
-                        tag[attr] = name
-            modified_xml_content = str(soup)
+                # for tag in soup.find_all(attrs={'author': True}):
+                for tag in tqdm(soup.find_all(), file_name):
+                    for attr in tag.attrs:
+                        if "author" in attr:
+                            tag[attr] = name
+                modified_xml_content = str(soup)
 
-            docx_out.writestr(file_name, modified_xml_content)
+                docx_out.writestr(file_name, modified_xml_content)
+            else:
+                docx_out.writestr(file_name, xml_content)
 
     print(f"Changes accepted and saved to {output}")
 
@@ -208,7 +221,9 @@ def process_file(path, review_need_accepted, comments_need_anonymized, comments_
     print(f"The modified file has been saved at {target}")
 
 def input_name():
-    file_path = "name.txt"
+    exe_path = sys.executable
+    file_path = os.path.dirname(exe_path) + "/name.txt"
+    print(file_path)
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             lines = file.readlines()
@@ -225,8 +240,9 @@ def input_name():
     else:
         print("Your name will be saved at name.txt at the same location of this exe.")
         name = input("What is your name?")
-        with open(file_path, 'w') as file:
-            file.write(name)
+        if name:
+            with open(file_path, 'w') as file:
+                file.write(name)
         return name
 
 def main():

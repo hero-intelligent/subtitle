@@ -18,7 +18,7 @@ from docx import Document
 
 from io import BytesIO
 
-from accept_review import accept_changes
+from package.accept_review import accept_changes
 
 data_template = {
     "ScriptInfo": {},

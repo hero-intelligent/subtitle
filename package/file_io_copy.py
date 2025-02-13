@@ -18,8 +18,8 @@ from docx import Document
 
 from io import BytesIO
 
-from accept_review import accept_changes
-from time_reform import time_str_to_ms, time_ms_to_str
+from package.accept_review import accept_changes
+from package.time_reform import time_str_to_ms, time_ms_to_str
 
 import pandas as pd
 
